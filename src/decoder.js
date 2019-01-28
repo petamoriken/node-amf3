@@ -8,8 +8,6 @@ import Reader from './reader';
 
 export default class Decoder {
 
-    static externalizables = {};
-
     /**
      * Registers a new externalizable. This function is required to be called
      * by an externalizable because this function is used to figure out which
@@ -41,8 +39,8 @@ export default class Decoder {
 
     // --- Proxy methods for reader ---
 
-    readByte(len = 1, alwaysReturnBuffer = false) {
-        return this._reader.readByte(len, alwaysReturnBuffer);
+    readByte(len) {
+        return this._reader.readByte(len);
     }
 
     readUInt8() {
@@ -120,7 +118,7 @@ export default class Decoder {
     }
 
     decode() {
-        return this.deserialize(this._reader.readByte());
+        return this.deserialize(this._reader.readUInt8());
     }
 
     /**
@@ -199,23 +197,22 @@ export default class Decoder {
      * @return {string}
      */
     decodeString() {
-        let header = this._reader.readAMFHeader();
+        const header = this._reader.readAMFHeader();
 
         // Refers to a previously decoded string
         if (!header.isDef) {
             return this.getStringRef(header.value);
         }
 
-        let length = header.value;
+        const length = header.value;
 
         // Return empty string if a 0-length string is indicated.
         // Note that a reference will not be created here.
-        if (header.value === 0) {
-            return '';
-        }
+        if (header.value === 0) { return ''; }
 
         // Otherwise, read string and push to reference table
-        let str = this.readByte(header.value, true).toString('utf8');
+        const decoder = new TextDecoder();
+        const str = decoder.decode(this.readByte(header.value));
         this.stringRefs.push(str);
 
         return str;
@@ -345,7 +342,7 @@ export default class Decoder {
 
         // Read fixed-vector byte
         // This is not needed for NodeJS
-        this._reader.readByte();
+        this._reader.readUInt8();
 
         // Read object-type name
         // This is not needed as NodeJS is dynamically typed
@@ -372,7 +369,7 @@ export default class Decoder {
 
         // Read weak-keys byte (p. 13)
         // Not used by NodeJS implementation
-        this.readByte();
+        this.readUInt8();
 
         let result = {},
             numElements = header.value;
@@ -388,3 +385,5 @@ export default class Decoder {
     }
 
 }
+
+Decoder.externalizables = {};
